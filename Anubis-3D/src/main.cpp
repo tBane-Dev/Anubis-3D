@@ -83,8 +83,14 @@ int main()
 
     Anubis::textures_manager = std::make_shared<Anubis::TexturesManager>();
     Anubis::cursor = std::make_shared<Anubis::Cursor>();
+    
+    // create scene
     Anubis::scene = std::make_shared<Anubis::Scene>();
+    auto size = Anubis::render_window->getSize();
+    if (!Anubis::scene->createPickingBuffer(size.x, size.y))
+        return EXIT_FAILURE;
 
+    // create models and add them to scene
     {
         // add left cube
         std::shared_ptr<Anubis::Model3D> cube = std::make_shared<Anubis::Model3D>();
@@ -168,7 +174,8 @@ int main()
                 Anubis::scene->_models[2]->_rotation = Anubis::Quaternion(1.0f, 0.f, 0.f, 0.f);
             }
             //
-
+            
+            Anubis::cursor->handleEvent(*event);
             Anubis::scene->handleEvent(*event);
     
         }
@@ -185,6 +192,8 @@ int main()
 	    // draw SFML 3.1
         Anubis::render_window->pushGLStates();
     
+        Anubis::cursor->draw();
+
         float border = 4.0f;
         sf::RectangleShape rect(sf::Vector2f(448, 64));
         rect.setFillColor(sf::Color(47, 47, 47));

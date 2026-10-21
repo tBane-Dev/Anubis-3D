@@ -1,5 +1,6 @@
 #pragma once
 #include "Model3D.hpp"
+#include <SFML/OpenGL.hpp>
 
 namespace Anubis {
 
@@ -13,8 +14,16 @@ namespace Anubis {
 
 
 		std::vector<std::shared_ptr<Model3D>> _models;
-		std::shared_ptr<Model3D> _hovered;
-		std::shared_ptr<Model3D> _pressed;
+
+		
+		GLuint _pickingFBO = 0;
+		GLuint _pickingColor = 0;
+		GLuint _pickingDepth = 0;
+		unsigned int _pickingWidth = 0;
+		unsigned int _pickingHeight = 0;
+		
+		std::vector<std::shared_ptr<Model3D>> _hovered;
+		std::vector<std::shared_ptr<Model3D>> _pressed;
 
 		Scene();
 		~Scene();
@@ -28,7 +37,9 @@ namespace Anubis {
 		void drawShapesOfModels();
 		void drawModels();
 
+		bool createPickingBuffer(unsigned int width, unsigned int height);	
 		int getHoveredModelId();
+		std::vector<std::shared_ptr<Model3D>> getModelsInRect(sf::IntRect rect);
 
 		void cursorHover();
 		void handleEvent(const sf::Event& event);

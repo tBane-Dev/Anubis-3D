@@ -16,6 +16,9 @@ namespace Anubis {
 
 		std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
+		sf::Vector2f offset;
+		sf::Vector2f _lastRotationMouse;
+
 		Model3D(float x = 0, float y = 0, float z = 0, Quaternion rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), float scale = 1.0f);
 		~Model3D();
 

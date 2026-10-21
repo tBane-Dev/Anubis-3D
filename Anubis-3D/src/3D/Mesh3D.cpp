@@ -127,11 +127,8 @@ namespace Anubis {
 		glScalef(scale, scale, scale);
 
 		glDisable(GL_TEXTURE_2D);
-		glColor3f(0.75f, 0.75f, 0.75f);
 
 		drawBuffers(false);
-
-		glBindTexture(GL_TEXTURE_2D, 0);
 
 		glPopMatrix();
 	}

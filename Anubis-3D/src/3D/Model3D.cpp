@@ -19,11 +19,14 @@ namespace Anubis {
 		_y = y;
 		_z = z;
 
-		Quaternion _rotation = rotation;
+		_rotation = rotation;
 
 		_scale = scale;
 
 		_meshes.clear();
+
+		offset = sf::Vector2f(0.0f, 0.0f);
+		_lastRotationMouse = sf::Vector2f(Anubis::cursor->_position);
 	}
 
 	Model3D::~Model3D() {
@@ -35,9 +38,6 @@ namespace Anubis {
 	}
 
 	void Model3D::handleEvent(const sf::Event& event) {
-
-		static sf::Vector2f offset(0.0f, 0.0f);
-		static sf::Vector2f _lastRotationMouse = sf::Vector2f(Anubis::cursor->_position);
 
 		auto size = Anubis::render_window->getSize();
 		auto mouse = Anubis::cursor->_position;
@@ -66,11 +66,24 @@ namespace Anubis {
 		float mouseX = (2.f * mouse.x / size.x - 1.f) * halfWidth;
 		float mouseY = (1.f - 2.f * mouse.y / size.y) * halfHeight;
 
-		if (scene->_hovered == this->shared_from_this()) {
+		auto hovered = std::find(scene->_hovered.begin(), scene->_hovered.end(), this->shared_from_this());
+		auto pressed = std::find(scene->_pressed.begin(), scene->_pressed.end(), this->shared_from_this());
+
+		if (hovered != scene->_hovered.end()) {
+			if (const auto* mbp = event.getIf<sf::Event::MouseButtonPressed>(); mbp && mbp->button == sf::Mouse::Button::Left) {
+
+				if (std::find(
+					scene->_pressed.begin(), scene->_pressed.end(), this->shared_from_this()
+				) == scene->_pressed.end()) {
+					scene->_pressed.push_back(this->shared_from_this());
+				}
+			}
+		}
+
+		pressed = std::find(scene->_pressed.begin(), scene->_pressed.end(), this->shared_from_this());
+
+		if (pressed != scene->_pressed.end()) {
 			if (const auto* mbp = event.getIf<sf::Event::MouseButtonPressed>(); mbp) {
-
-				scene->_pressed = this->shared_from_this();
-
 				if (mbp->button == sf::Mouse::Button::Left) {
 					offset.x = mouseX - modelViewX;
 					offset.y = mouseY - modelViewY;
@@ -82,8 +95,8 @@ namespace Anubis {
 			}
 		}
 
-		if (scene->_pressed == this->shared_from_this()) {
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+		if (pressed != scene->_pressed.end()) {
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && cursor->_isDragging) {
 				float viewX = mouseX - offset.x;
 				float viewY = mouseY - offset.y;
 
@@ -91,44 +104,46 @@ namespace Anubis {
 				_y = camera.y + viewY;
 				_z = camera.z - viewX * sinAngle - distance * cosAngle;
 			}
-
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
-			{
-				auto delta = sf::Vector2f(Anubis::cursor->_position) - _lastRotationMouse;
-				_lastRotationMouse = sf::Vector2f(Anubis::cursor->_position);
-
-				float dx = (float)(delta.x);
-				float dy = (float)(delta.y);
-				float length = std::hypot(dx, dy);
-				if (length > 0.f) {
-					float sensitivity = 0.5f; // Stopnie na piksel.
-					float toRadians = 3.14159265f / 180.f;
-
-					float halfAngle = length * sensitivity * toRadians * 0.5f;
-					float s = std::sin(halfAngle) / length;
-
-					Quaternion deltaRotation{
-						std::cos(halfAngle),
-						dy * s * cosAngle,
-						dx * s,
-						-dy * s * sinAngle
-					};
-
-					_rotation = deltaRotation * _rotation;
-					_rotation.normalize();
-				}
-			}
-		}
-
-		if (const auto* mbr = event.getIf<sf::Event::MouseButtonReleased>(); mbr) {
-			if (scene->_pressed == this->shared_from_this())
-				scene->_pressed = nullptr;
 		}
 	}
 
 	void Model3D::update() {
 
-		// rotation about X axis
+		auto pressed = std::find(scene->_pressed.begin(), scene->_pressed.end(), this->shared_from_this());
+
+		if (pressed != scene->_pressed.end() && sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
+		{
+			auto delta = sf::Vector2f(Anubis::cursor->_position) - _lastRotationMouse;
+			_lastRotationMouse = sf::Vector2f(Anubis::cursor->_position);
+
+			float dx = (float)(delta.x);
+			float dy = (float)(delta.y);
+			float length = std::hypot(dx, dy);
+			if (length > 0.f) {
+				float sensitivity = 0.5f; // Stopnie na piksel.
+				float toRadians = 3.14159265f / 180.f;
+
+				float halfAngle = length * sensitivity * toRadians * 0.5f;
+				float s = std::sin(halfAngle) / length;
+
+				float sinAngle = std::sin(scene->_cameraAngle);
+				float cosAngle = std::cos(scene->_cameraAngle);
+
+				Quaternion deltaRotation{
+					std::cos(halfAngle),
+					dy * s * cosAngle,
+					dx * s,
+					-dy * s * sinAngle
+				};
+
+				_rotation = deltaRotation * _rotation;
+				_rotation.normalize();
+			}
+
+			return;
+		}
+
+		// rotation about Y axis
 		float speed = 30.f; // Stopnie na sekundę.
 		float toRadians = 3.14159265f / 180.f;
 		float angle = speed * Anubis::deltaTime.asSeconds() * toRadians;
@@ -152,8 +167,11 @@ namespace Anubis {
 
 	void Model3D::draw() {
 
+		auto hovered = std::find(scene->_hovered.begin(), scene->_hovered.end(), this->shared_from_this());
+		auto pressed = std::find(scene->_pressed.begin(), scene->_pressed.end(), this->shared_from_this());
+
 		for (auto& mesh : _meshes) {
-			bool highlighting = scene->_pressed == this->shared_from_this() || (scene->_pressed == nullptr && scene->_hovered == this->shared_from_this());
+			bool highlighting = pressed != scene->_pressed.end() || (scene->_pressed.empty() && hovered != scene->_hovered.end());
 			mesh->draw(highlighting, _x, _y, _z, _rotation, _scale);
 		}
 	}
