@@ -73,6 +73,7 @@ namespace Anubis {
         }
 
         // Loaded textures
+        
         DebugLog(L"Loading textures:");
         for (auto& path : texturePaths) {
             if (getTexture(path)) {
@@ -97,6 +98,7 @@ namespace Anubis {
             exit(0);
         }
 
+        DebugStat(L"");
     }
 
     std::shared_ptr<TexturesManager> textures_manager = nullptr;

@@ -1,4 +1,6 @@
-﻿#include <iostream>
+﻿#include <io.h>       // _setmode, _fileno
+#include <fcntl.h>   // _O_U16TEXT
+#include <stdio.h>   // stdout
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -7,6 +9,7 @@
 
 #include "Intro.hpp"
 
+#include "3D/OpenGLBuffers.hpp"
 #include "3D/Vertex3D.hpp"
 #include "3D/Mesh3D.hpp" 
 #include "3D/Model3D.hpp"
@@ -23,6 +26,8 @@ sf::Font font;
 
 int main()
 {
+    (void)_setmode(_fileno(stdout), _O_U16TEXT); // wide char UTF-16 output
+
     sf::ContextSettings settings;
     settings.depthBits = 24;
     settings.stencilBits = 8;
@@ -36,11 +41,17 @@ int main()
     auto* version = glGetString(GL_VERSION);
     auto* renderer = glGetString(GL_RENDERER);
 
-    if (version)
-        std::cout << "OpenGL: " << version << '\n';
+    if (version) {
+        std::string text(reinterpret_cast<const char*>(version));
+        DebugStat(L"OpenGL: " + std::wstring(text.begin(), text.end()));
+    }
 
-    if (renderer)
-        std::cout << "Renderer: " << renderer << '\n';
+    if (renderer) {
+        std::string text(reinterpret_cast<const char*>(renderer));
+        DebugStat(L"Renderer: " + std::wstring(text.begin(), text.end()));
+    }
+
+    DebugStat(L"");
 
     Anubis::render_window->clear(sf::Color::Black);
     Anubis::render_window->display();
@@ -61,6 +72,10 @@ int main()
 
     Anubis::render_window->resetGLStates();
 
+    // OpenGL Buffers initialize :-)
+    if (!Anubis::GL::initialize())
+        return EXIT_FAILURE;
+
     if (!font.openFromFile("C:/Windows/Fonts/consola.ttf")) {
         DebugError(L"Failed to load font");
         exit(0);
@@ -68,23 +83,14 @@ int main()
 
     Anubis::textures_manager = std::make_shared<Anubis::TexturesManager>();
     Anubis::cursor = std::make_shared<Anubis::Cursor>();
-    
     Anubis::scene = std::make_shared<Anubis::Scene>();
-    
-    {
-        // add center cube
-        std::shared_ptr<Anubis::Model3D> cube = std::make_shared<Anubis::Model3D>();
-        std::shared_ptr<Anubis::Mesh3D> cube_mesh = Anubis::generateCube(0.5f);
-        cube_mesh->setTexture(Anubis::textures_manager->getTexture(L"assets\\tex\\wall1.png"));
-        cube->addMesh(cube_mesh);
-        Anubis::scene->addModel(cube);
-    }
-    
+
     {
         // add left cube
         std::shared_ptr<Anubis::Model3D> cube = std::make_shared<Anubis::Model3D>();
         std::shared_ptr<Anubis::Mesh3D> cube_mesh = Anubis::generateCube(0.5f);
         cube_mesh->setTexture(Anubis::textures_manager->getTexture(L"assets\\tex\\wall2.png"));
+        cube_mesh->uploadToGPU();
         cube->addMesh(cube_mesh);
         cube->_x = -2.0f;
         Anubis::scene->addModel(cube);
@@ -95,9 +101,16 @@ int main()
         std::shared_ptr<Anubis::Model3D> cube = std::make_shared<Anubis::Model3D>();
         std::shared_ptr<Anubis::Mesh3D> cube_mesh = Anubis::generateCube(0.5f);
         cube_mesh->setTexture(Anubis::textures_manager->getTexture(L"assets\\tex\\wall3.png"));
+        cube_mesh->uploadToGPU();
         cube->addMesh(cube_mesh);
         cube->_x = 2.0f;
         Anubis::scene->addModel(cube);
+    }
+     
+    {
+        std::shared_ptr<Anubis::Model3D> golem = Anubis::openModel3DFromFile(L"assets\\mdl\\golem.glb");
+        golem->_scale = 3.0f;
+        Anubis::scene->addModel(golem);
     }
 
     
@@ -150,7 +163,12 @@ int main()
                 exit(0);
             }
     
-    
+            // TO-DO - to delete
+            if (const auto* pressed = event->getIf<sf::Event::KeyPressed>(); pressed && pressed->code == sf::Keyboard::Key::Space) {
+                Anubis::scene->_models[2]->_rotation = Anubis::Quaternion(1.0f, 0.f, 0.f, 0.f);
+            }
+            //
+
             Anubis::scene->handleEvent(*event);
     
         }

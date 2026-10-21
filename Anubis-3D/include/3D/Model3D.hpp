@@ -12,10 +12,11 @@ namespace Anubis {
 		int _id;
 		float _x, _y, _z;
 		Quaternion _rotation;
+		float _scale;
 
 		std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
-		Model3D(float x = 0, float y = 0, float z = 0, Quaternion rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+		Model3D(float x = 0, float y = 0, float z = 0, Quaternion rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), float scale = 1.0f);
 		~Model3D();
 
 		void addMesh(std::shared_ptr<Anubis::Mesh3D> mesh);
@@ -25,4 +26,6 @@ namespace Anubis {
 		void drawShape();
 		void draw();
 	};
+
+	std::shared_ptr<Model3D> openModel3DFromFile(std::filesystem::path path);
 }
